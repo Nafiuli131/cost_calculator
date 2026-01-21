@@ -11,9 +11,7 @@ import lombok.NoArgsConstructor;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 @org.springframework.stereotype.Service
 @NoArgsConstructor
@@ -57,13 +55,15 @@ public class Service {
 
 
     public List<MonthYearStatResponseDTO> getMonthYearStat(MonthYearStatDTO dto) {
-        List<MonthCost> months = monthCostRepository.findByYearValue(dto.getYear().intValue(),dto.getYear().intValue()-1);
+        int currentYear=dto.getYear().intValue();
+        int previousYear=dto.getYear().intValue()-1;
+        List<MonthCost> months = monthCostRepository.findByYearValue(currentYear,previousYear);
         List<MonthCost> filteredMonths = new ArrayList<>();
         months.stream()
-                .filter(m -> m.getYear().getYear() == dto.getYear().intValue())
+                .filter(m -> m.getYear().getYear() == currentYear)
                 .forEach(filteredMonths::add);
         months.stream()
-                .filter(m -> m.getYear().getYear() == dto.getYear().intValue()-1 && "DECEMBER".equalsIgnoreCase(m.getMonth()))
+                .filter(m -> m.getYear().getYear() == previousYear && "DECEMBER".equalsIgnoreCase(m.getMonth()))
                 .forEach(filteredMonths::add);
 
         filteredMonths.sort((m1, m2) -> {
@@ -81,15 +81,38 @@ public class Service {
 
         List<MonthYearStatResponseDTO> result = new ArrayList<>();
         MonthCost prev = null;
+        HashMap<String,Double> minMaxCost = new HashMap<>();
         for (MonthCost current : filteredMonths) {
+            if(current.getYear().getYear()==currentYear) {
+                minMaxCost.put(current.getMonth(), current.getCost());
+            }
             MonthYearStatResponseDTO response = getMonthYearStatResponseDTO(current, prev);
             if(response.getMonth()!=null && response.getMessage()!=null) {
                 result.add(response);
             }
             prev = current;
         }
-
+        calculateMinMaxCost(result,minMaxCost);
         return result;
+    }
+
+    private void calculateMinMaxCost(List<MonthYearStatResponseDTO> result, HashMap<String, Double> minMaxCost) {
+        Map.Entry<String, Double> minEntry = minMaxCost.entrySet()
+                .stream()
+                .min(Map.Entry.comparingByValue())
+                .orElse(null);
+        MonthYearStatResponseDTO minResponse = new MonthYearStatResponseDTO();
+        minResponse.setMonth(minEntry.getKey());
+        minResponse.setMessage("Minimum cost month "+ String.valueOf(minEntry.getValue()));
+        result.add(minResponse);
+        Map.Entry<String, Double> maxEntry = minMaxCost.entrySet()
+                .stream()
+                .max(Map.Entry.comparingByValue())
+                .orElse(null);
+        MonthYearStatResponseDTO maxResponse = new MonthYearStatResponseDTO();
+        maxResponse.setMonth(maxEntry.getKey());
+        maxResponse.setMessage("Maximum cost month "+ String.valueOf(maxEntry.getValue()));
+        result.add(maxResponse);
     }
 
     private static @NonNull MonthYearStatResponseDTO getMonthYearStatResponseDTO(MonthCost current, MonthCost prev) {
@@ -101,8 +124,8 @@ public class Service {
             double currCost = current.getCost();
             double percentage = ((currCost - prevCost) / prevCost) * 100;
             String msg = percentage >= 0
-                    ? String.format("Increased by %.2f%% compared to %s, %d", percentage, prev.getMonth(),prev.getYear().getYear())
-                    : String.format("Decreased by %.2f%% compared to %s, %d", Math.abs(percentage), prev.getMonth(),prev.getYear().getYear());
+                    ? String.format("Increased by %.2f%% compared to %s, %d and this month cost is %.2f", percentage, prev.getMonth(),prev.getYear().getYear(),current.getCost())
+                    : String.format("Decreased by %.2f%% compared to %s, %d and this month cost is %.2f", Math.abs(percentage), prev.getMonth(),prev.getYear().getYear(),current.getCost());
 
             response.setMessage(msg);
         }
