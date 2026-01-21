@@ -13,6 +13,6 @@ public interface MonthCostRepository extends JpaRepository<MonthCost, Long> {
     @Query("SELECT COUNT(m) > 0 FROM MonthCost m WHERE m.year.id = :yearId AND m.month = :month")
     boolean existByMonthAndYear(@Param("yearId") Long yearId, @Param("month") String month);
 
-    @Query("SELECT m FROM MonthCost m WHERE m.year.year = :year")
-    List<MonthCost> findByYearValue(@Param("year") int year);
+    @Query("SELECT m FROM MonthCost m WHERE m.year.year IN (:year, :prevYear)")
+    List<MonthCost> findByYearValue(int year, int prevYear);
 }

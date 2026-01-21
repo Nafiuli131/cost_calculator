@@ -57,13 +57,35 @@ public class Service {
 
 
     public List<MonthYearStatResponseDTO> getMonthYearStat(MonthYearStatDTO dto) {
-        List<MonthCost> months = monthCostRepository.findByYearValue(dto.getYear().intValue());
-        months.sort(Comparator.comparingInt(m -> monthToInt(m.getMonth())));
+        List<MonthCost> months = monthCostRepository.findByYearValue(dto.getYear().intValue(),dto.getYear().intValue()-1);
+        List<MonthCost> filteredMonths = new ArrayList<>();
+        months.stream()
+                .filter(m -> m.getYear().getYear() == dto.getYear().intValue())
+                .forEach(filteredMonths::add);
+        months.stream()
+                .filter(m -> m.getYear().getYear() == dto.getYear().intValue()-1 && "DECEMBER".equalsIgnoreCase(m.getMonth()))
+                .forEach(filteredMonths::add);
+
+        filteredMonths.sort((m1, m2) -> {
+            int y1 = m1.getYear().getYear();
+            int y2 = m2.getYear().getYear();
+            int month1 = monthToInt(m1.getMonth());
+            int month2 = monthToInt(m2.getMonth());
+
+            if (y1 != y2) {
+                return Integer.compare(y1, y2);
+            } else {
+                return Integer.compare(month1, month2);
+            }
+        });
+
         List<MonthYearStatResponseDTO> result = new ArrayList<>();
         MonthCost prev = null;
-        for (MonthCost current : months) {
+        for (MonthCost current : filteredMonths) {
             MonthYearStatResponseDTO response = getMonthYearStatResponseDTO(current, prev);
-            result.add(response);
+            if(response.getMonth()!=null && response.getMessage()!=null) {
+                result.add(response);
+            }
             prev = current;
         }
 
@@ -72,17 +94,15 @@ public class Service {
 
     private static @NonNull MonthYearStatResponseDTO getMonthYearStatResponseDTO(MonthCost current, MonthCost prev) {
         MonthYearStatResponseDTO response = new MonthYearStatResponseDTO();
-        response.setMonth(current.getMonth());
 
-        if (prev == null) {
-            response.setMessage("N/A");
-        } else {
+        if (prev != null) {
+            response.setMonth(current.getMonth());
             double prevCost = prev.getCost();
             double currCost = current.getCost();
             double percentage = ((currCost - prevCost) / prevCost) * 100;
             String msg = percentage >= 0
-                    ? String.format("Increased by %.2f%% compared to %s", percentage, prev.getMonth())
-                    : String.format("Decreased by %.2f%% compared to %s", Math.abs(percentage), prev.getMonth());
+                    ? String.format("Increased by %.2f%% compared to %s, %d", percentage, prev.getMonth(),prev.getYear().getYear())
+                    : String.format("Decreased by %.2f%% compared to %s, %d", Math.abs(percentage), prev.getMonth(),prev.getYear().getYear());
 
             response.setMessage(msg);
         }
