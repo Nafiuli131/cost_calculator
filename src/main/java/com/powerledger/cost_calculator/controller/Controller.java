@@ -6,13 +6,17 @@ import com.powerledger.cost_calculator.dto.MonthYearStatResponseDTO;
 import com.powerledger.cost_calculator.service.Service;
 import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.ByteArrayInputStream;
 import java.util.List;
 
 @RestController
@@ -38,4 +42,21 @@ public class Controller {
         List<MonthYearStatResponseDTO> responseDTOS=service.getMonthYearStat(dto);
         return new ResponseEntity<>(responseDTOS, HttpStatus.OK);
     }
+
+    @PostMapping("/download/pdf")
+    public ResponseEntity<InputStreamResource> downloadPdf(@RequestBody MonthYearStatDTO dto) {
+
+        List<MonthYearStatResponseDTO> data = service.getMonthYearStat(dto);
+
+        ByteArrayInputStream pdf = service.generatePdf(data,dto);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Content-Disposition", "attachment; filename=monthly-cost-report-" + dto.getYear() + ".pdf");
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(new InputStreamResource(pdf));
+    }
+
 }

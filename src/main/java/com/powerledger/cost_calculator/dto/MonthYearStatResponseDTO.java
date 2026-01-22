@@ -12,4 +12,5 @@ import lombok.Setter;
 public class MonthYearStatResponseDTO {
     private String month;
     private String message;
+    private int year;
 }
