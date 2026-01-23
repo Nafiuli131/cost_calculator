@@ -142,6 +142,10 @@ public class Service {
 
             response.setMessage(msg);
             response.setYear(current.getYear().getYear());
+        }else{
+            response.setMonth(current.getMonth());
+            response.setMessage("Cost is "+current.getCost());
+            response.setYear(current.getYear().getYear());
         }
         return response;
     }
